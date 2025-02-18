@@ -9,7 +9,7 @@
             font-family: Arial, sans-serif;
             margin: 20px auto;
             padding: 20px;
-            max-width: 500px;
+            max-width: 700px;
             background-color: #f9f9f9;
             border: 1px solid #ddd;
             border-radius: 10px;
@@ -19,7 +19,7 @@
             margin-top: 10px;
             font-weight: bold;
         }
-        input[type="text"], input[type="radio"], textarea {
+        input[type="text"], textarea {
             margin-top: 5px;
             width: 95%;
             padding: 10px;
@@ -33,7 +33,7 @@
         .gender-options {
             display: flex;
             align-items: center;
-            gap: 20px; /* Spacing between options */
+            gap: 20px;
             margin-top: 5px;
         }
         .gender-options label {
@@ -42,7 +42,7 @@
             width: auto;
         }
         .gender-options input {
-            margin: 0; /* Remove extra margin around radio buttons */
+            margin: 0;
             width: auto;
         }
         button {
@@ -87,46 +87,156 @@
             <label for="other" style="display: inline;">Other</label>
         </div>
 
-        <button type="submit" onclick="AddtoTable()">Submit</button>
+        <button onclick="AddtoTable(event)">Submit</button>
+        <button type="reset">Reset</button>
     </form>
 </div>
 <div class="form">
-    <table border="1" cellpadding="12">
+    <table border="1" cellpadding="12" id="table">
         <tr>
             <th>Sr No.</th>
-            <th>Name: </th>
+            <th>Name</th>
             <th>Father's Name</th>
             <th>Class</th>
             <th>Address</th>
             <th>Gender</th>
-        </tr>
-        <tr>
-            <td>1</td>
-            <td id="name-f"></td>
-            <td id="father-name-f"></td>
-            <td id="class-f"></td>
-            <td id="address-f"></td>
-            <td></td>
+            <th>Action</th>
         </tr>
     </table>
 </div>
 <script>
-function AddtoTable(){
-    event.preventDefault();
-    const StudentName=document.getElementById('student-name').value;
-    const FatherName=document.getElementById('fathers-name').value;
-    const Class=document.getElementById('class').value;
-    const Address=document.getElementById('address').value;
+let tableData = JSON.parse(localStorage.getItem("tableData")) || []; // Initialize the table data from localStorage
+let sr_no = tableData.length ? tableData.length + 1 : 1;  // Get the next serial number based on saved data
+let editIndex = -1;
 
-    document.getElementById('name-f').innerText=StudentName;
-    document.getElementById('father-name-f').innerText=FatherName;
-    document.getElementById('class-f').innerText=Class;
-    document.getElementById('address-f').innerText=Address;
+function resetForm() {
+    document.getElementById('student-form').reset();
+    document.getElementById('submit-btn').textContent = 'Submit';
+    editIndex = -1;
 }
+
+// Function to add or update a row
+function AddtoTable(event) {
+    event.preventDefault();
+
+    const StudentName = document.getElementById('student-name').value.trim();
+    const FatherName = document.getElementById('fathers-name').value.trim();
+    const Class = document.getElementById('class').value.trim();
+    const Address = document.getElementById('address').value.trim();
+
+    const genderRadios = document.getElementsByName('gender');
+    let selectedGender = '';
+
+    for (const radio of genderRadios) {
+        if (radio.checked) {
+            selectedGender = radio.value;
+            break;
+        }
+    }
+
+    if (!StudentName || !FatherName || !Class || !Address || !selectedGender) {
+        alert("Please fill in all fields before submitting.");
+        return;
+    }
+
+    let table = document.getElementById("table");
+
+    if (editIndex === -1) {
+        let newRow = table.insertRow();
+        newRow.insertCell(0).innerHTML = sr_no++;
+        newRow.insertCell(1).innerHTML = StudentName;
+        newRow.insertCell(2).innerHTML = FatherName;
+        newRow.insertCell(3).innerHTML = Class;
+        newRow.insertCell(4).innerHTML = Address;
+        newRow.insertCell(5).innerHTML = selectedGender;
+
+        let actionCell = newRow.insertCell(6);
+        actionCell.innerHTML = `
+            <button class="edit-btn" onclick="editRow(this)">Edit</button>
+            <button class="delete-btn" onclick="deleteRow(this)">Delete</button>
+        `;
+
+        // Save the row to tableData array and update localStorage
+        tableData.push({ sr_no: sr_no - 1, StudentName, FatherName, Class, Address, selectedGender });
+        localStorage.setItem("tableData", JSON.stringify(tableData));
+    } else {
+        let row = table.rows[editIndex];
+        row.cells[1].innerHTML = StudentName;
+        row.cells[2].innerHTML = FatherName;
+        row.cells[3].innerHTML = Class;
+        row.cells[4].innerHTML = Address;
+        row.cells[5].innerHTML = selectedGender;
+
+        // Update tableData array with the new data and update localStorage
+        tableData[editIndex - 1] = { sr_no: editIndex, StudentName, FatherName, Class, Address, selectedGender };
+        localStorage.setItem("tableData", JSON.stringify(tableData));
+
+        resetForm();
+    }
+
+    // Clear input fields after submission
+    document.getElementById('student-name').value = "";
+    document.getElementById('fathers-name').value = "";
+    document.getElementById('class').value = "";
+    document.getElementById('address').value = "";
+    genderRadios.forEach(radio => (radio.checked = false));
+}
+
+// Delete row and update localStorage
+function deleteRow(button) {
+    const row = button.closest('tr');
+    const rowIndex = row.rowIndex - 1;  // Account for table header row (index 0)
+    row.remove();
+
+    // Remove the row data from tableData array
+    tableData.splice(rowIndex, 1);
+    localStorage.setItem("tableData", JSON.stringify(tableData));
+}
+
+// Edit row and fill the form
+function editRow(button) {
+    const row = button.closest('tr');
+    editIndex = row.rowIndex;  // Store the row index
+
+    document.getElementById('student-name').value = row.cells[1].innerHTML;
+    document.getElementById('fathers-name').value = row.cells[2].innerHTML;
+    document.getElementById('class').value = row.cells[3].innerHTML;
+    document.getElementById('address').value = row.cells[4].innerHTML;
+
+    const gender = row.cells[5].innerHTML;
+    const genderRadios = document.getElementsByName('gender');
+    for (const radio of genderRadios) {
+        if (radio.value === gender) {
+            radio.checked = true;
+            break;
+        }
+    }
+
+    // Change button text to 'Update'
+    document.getElementById('submit-btn').textContent = 'Update';
+}
+
+// Load table data from localStorage when page is refreshed
+document.addEventListener("DOMContentLoaded", function () {
+    let table = document.getElementById("table");
+
+    tableData.forEach((data, index) => {
+        let newRow = table.insertRow();
+        newRow.insertCell(0).innerHTML = data.sr_no;
+        newRow.insertCell(1).innerHTML = data.StudentName;
+        newRow.insertCell(2).innerHTML = data.FatherName;
+        newRow.insertCell(3).innerHTML = data.Class;
+        newRow.insertCell(4).innerHTML = data.Address;
+        newRow.insertCell(5).innerHTML = data.selectedGender;
+
+        let actionCell = newRow.insertCell(6);
+        actionCell.innerHTML = `
+            <button class="edit-btn" onclick="editRow(this)">Edit</button>
+            <button class="delete-btn" onclick="deleteRow(this)">Delete</button>
+        `;
+    });
+});
+
 </script>
 </body>
 </html>
-
-
-
-<!-- Is this good practice to use const or normal variable name? -->
